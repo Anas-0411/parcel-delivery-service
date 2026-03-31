@@ -5,6 +5,8 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import connectDB from "./config/db.js";
 import authRouter from "./routes/auth.routes.js";
+import userRouter from "./routes/user.routes.js";
+import parcelRouter from "./routes/parcel.routes.js";
 
 dotenv.config();
 
@@ -25,6 +27,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/parcel", parcelRouter);
 
 // Start the server
 const PORT = process.env.PORT || 5000;

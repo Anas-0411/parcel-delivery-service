@@ -8,8 +8,8 @@ const userSchema = new mongoose.Schema(
     country: { type: String, required: true },
     address: { type: String, required: true },
     password: { type: String, required: true },
-    status: { type: Number, default: 0 },
-    role: { type: String, default: "user" },
+    status: { type: String, default: "active", enum: ["active", "inactive"] },
+    role: { type: String, default: "user", enum: ["user", "admin"] },
   },
   { timestamps: true },
 );
