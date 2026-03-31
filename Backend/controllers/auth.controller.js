@@ -7,10 +7,12 @@ import jwt from "jsonwebtoken";
 // @access  Public
 export const registerUserController = async (req, res) => {
   try {
+    // Extract user details from request body
     const { fullname, email, age, country, address, password } = req.body;
 
     // Validate required fields
     if (!fullname || !email || !country || !address || !password) {
+      // If any required field is missing, return error
       return res.status(400).json({
         success: false,
         error: true,
@@ -18,9 +20,10 @@ export const registerUserController = async (req, res) => {
       });
     }
 
-    // Check if user already exists
+    // Check if user already exists in the database
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
+      // If user exists, return error
       return res.status(400).json({
         success: false,
         error: true,
@@ -28,11 +31,11 @@ export const registerUserController = async (req, res) => {
       });
     }
 
-    // Hash the password
+    // Hash the password for security
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
+    // Create new user document
     const newUser = new UserModel({
       fullname,
       email,
@@ -43,7 +46,7 @@ export const registerUserController = async (req, res) => {
     });
     await newUser.save();
 
-    // Generate access token
+    // Generate access token (short-lived)
     const accessToken = jwt.sign(
       { userId: newUser._id },
       process.env.ACCESS_TOKEN_SECRET,
@@ -52,7 +55,7 @@ export const registerUserController = async (req, res) => {
       },
     );
 
-    // Generate refresh token
+    // Generate refresh token (long-lived)
     const refreshToken = jwt.sign(
       { userId: newUser._id },
       process.env.REFRESH_TOKEN_SECRET,
@@ -61,7 +64,7 @@ export const registerUserController = async (req, res) => {
       },
     );
 
-    // Store access token in httpOnly cookie
+    // Store access token in httpOnly cookie for security
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -77,7 +80,7 @@ export const registerUserController = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // return user data (no password) and success
+    // Return user data (excluding password) and success message
     const { password: pwd, ...userData } = newUser._doc;
     return res.status(201).json({
       success: true,
@@ -86,6 +89,7 @@ export const registerUserController = async (req, res) => {
       data: userData,
     });
   } catch (error) {
+    // Handle server errors
     return res.status(500).json({
       success: false,
       error: true,
@@ -100,10 +104,12 @@ export const registerUserController = async (req, res) => {
 // @access  Public
 export const loginUserController = async (req, res) => {
   try {
+    // Extract email and password from request body
     const { email, password } = req.body;
 
     // Validate required fields
     if (!email || !password) {
+      // If email or password is missing, return error
       return res.status(400).json({
         success: false,
         error: true,
@@ -111,9 +117,10 @@ export const loginUserController = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user exists in the database
     const user = await UserModel.findOne({ email });
     if (!user) {
+      // If user does not exist, return error
       return res.status(400).json({
         success: false,
         error: true,
@@ -121,9 +128,10 @@ export const loginUserController = async (req, res) => {
       });
     }
 
-    // Compare password
+    // Compare provided password with hashed password in database
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      // If password does not match, return error
       return res.status(400).json({
         success: false,
         error: true,
@@ -131,7 +139,7 @@ export const loginUserController = async (req, res) => {
       });
     }
 
-    // Generate access token
+    // Generate access token (short-lived)
     const accessToken = jwt.sign(
       { userId: user._id },
       process.env.ACCESS_TOKEN_SECRET,
@@ -140,7 +148,7 @@ export const loginUserController = async (req, res) => {
       },
     );
 
-    // Generate refresh token
+    // Generate refresh token (long-lived)
     const refreshToken = jwt.sign(
       { userId: user._id },
       process.env.REFRESH_TOKEN_SECRET,
@@ -149,7 +157,7 @@ export const loginUserController = async (req, res) => {
       },
     );
 
-    // Store access token in httpOnly cookie
+    // Store access token in httpOnly cookie for security
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production", // set true in production
@@ -165,7 +173,7 @@ export const loginUserController = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // return user data (no password) and success
+    // Return user data (excluding password) and success message
     const { password: pwd, ...userData } = user._doc;
     return res.status(200).json({
       success: true,
@@ -174,6 +182,7 @@ export const loginUserController = async (req, res) => {
       data: userData,
     });
   } catch (error) {
+    // Handle server errors
     return res.status(500).json({
       success: false,
       error: true,
@@ -187,15 +196,18 @@ export const loginUserController = async (req, res) => {
 // @route   POST /api/v1/auth/logout
 // @access  Private (requires authentication)
 export const logoutUserController = (req, res) => {
+  // Define cookie options for clearing cookies
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
   };
 
+  // Clear access and refresh token cookies
   res.clearCookie("accessToken", cookieOptions);
   res.clearCookie("refreshToken", cookieOptions);
 
+  // Respond with logout success message
   return res.status(200).json({
     success: true,
     error: false,
@@ -207,8 +219,10 @@ export const logoutUserController = (req, res) => {
 // @route   POST /api/v1/auth/refresh-token
 // @access  Public
 export const refreshTokenController = (req, res) => {
+  // Get refresh token from cookies
   const refreshToken = req.cookies.refreshToken;
   if (!refreshToken) {
+    // If no refresh token is provided, return error
     return res.status(401).json({
       success: false,
       error: true,
@@ -216,7 +230,9 @@ export const refreshTokenController = (req, res) => {
     });
   }
   try {
-    const decoded = jwt.verify(refreshToken, process.env.ACCESS_TOKEN_SECRET);
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    // Generate new access token
     const accessToken = jwt.sign(
       { userId: decoded.userId },
       process.env.ACCESS_TOKEN_SECRET,
@@ -224,18 +240,21 @@ export const refreshTokenController = (req, res) => {
         expiresIn: "15m",
       },
     );
+    // Store new access token in httpOnly cookie
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
+    // Respond with success message
     return res.status(200).json({
       success: true,
       error: false,
       message: "Access token refreshed successfully",
     });
   } catch (error) {
+    // If refresh token is invalid or expired, return error
     return res.status(401).json({
       success: false,
       error: true,
