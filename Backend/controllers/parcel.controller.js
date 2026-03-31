@@ -83,55 +83,6 @@ export const getUserParcelsController = async (req, res) => {
   }
 };
 
-// @desc    Update parcel status
-// @route   PATCH /api/v1/parcel/status/:id
-// @access  Private/Admin
-
-export const updateParcelStatusController = async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    const allowedStatus = ["pending", "shipped", "delivered", "cancelled"];
-
-    if (!allowedStatus.includes(status)) {
-      return res.status(400).json({
-        message: "Invalid status",
-      });
-    }
-
-    const parcel = await ParcelModel.findById(req.params.id);
-
-    if (!parcel) {
-      return res.status(404).json({ message: "Parcel not found" });
-    }
-
-    // 🔥 Status flow rules
-    const validTransitions = {
-      pending: ["shipped", "cancelled"],
-      shipped: ["delivered"],
-      delivered: [],
-      cancelled: [],
-    };
-
-    if (!validTransitions[parcel.status].includes(status)) {
-      return res.status(400).json({
-        message: `Cannot change status from ${parcel.status} to ${status}`,
-      });
-    }
-
-    parcel.status = status;
-    await parcel.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Status updated successfully",
-      data: parcel,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // @desc    Update parcel
 // @route   PUT /api/v1/parcel/:id
 // @access  Private
@@ -144,9 +95,12 @@ export const updateParcelController = async (req, res) => {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
-    // Only sender can update
-    if (parcel.senderEmail !== req.user.email) {
-      return res.status(403).json({ message: "Unauthorized" });
+    // Only sender or admin can update
+    if (
+      req.user.role !== "admin" &&
+      parcel.senderEmail !== req.user.email
+    ) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     // Prevent status change from here
@@ -168,20 +122,73 @@ export const updateParcelController = async (req, res) => {
   }
 };
 
-// @desc    Delete parcel
-// @route   DELETE /api/v1/parcel/:id
-// @access  Private/Admin
-
-export const deleteParcelController = async (req, res) => {
+export const updateParcelStatusController = async (req, res) => {
   try {
+    const { status } = req.body;
+
+    // ✅ Match model
+    const allowedStatus = ["pending", "in transit", "delivered", "cancelled"];
+
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status",
+      });
+    }
+
     const parcel = await ParcelModel.findById(req.params.id);
 
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
-    await parcel.deleteOne();
+    // ✅ Correct flow
+    const validTransitions = {
+      pending: ["in transit", "cancelled"],
+      "in transit": ["delivered"],
+      delivered: [],
+      cancelled: [],
+    };
 
+    if (!validTransitions[parcel.status].includes(status)) {
+      return res.status(400).json({
+        message: `Cannot change status from ${parcel.status} to ${status}`,
+      });
+    }
+
+    parcel.status = status;
+    await parcel.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Status updated successfully",
+      data: parcel,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Delete parcel
+// @route   DELETE /api/v1/parcel/:id
+// @access  Private/Admin
+
+export const deleteParcelController = async (req, res) => {
+  try {
+    // Only admin can delete
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
+    const parcel = await ParcelModel.findById(req.params.id);
+    if (!parcel) {
+      return res.status(404).json({ message: "Parcel not found" });
+    }
+    await parcel.deleteOne();
     res.status(200).json({
       success: true,
       message: "Parcel deleted successfully",

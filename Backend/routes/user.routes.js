@@ -15,10 +15,10 @@ userRouter.get("/profile", authenticateToken, getUserProfileController);
 // Get all users (admin only, add admin middleware if needed)
 userRouter.get("/all", authenticateToken, isAdmin, getAllUsersController);
 
-// Delete a user by ID (admin only, add admin middleware if needed)
-userRouter.delete("/:id", authenticateToken, isAdmin, deleteUserController);
-
 // Update a user by ID (admin or self, add admin/self middleware if needed)
 userRouter.put("/:id", authenticateToken, isAdmin, updateUserController);
+
+// Delete a user by ID (admin only, add admin middleware if needed)
+userRouter.delete("/:id", authenticateToken, isAdmin, deleteUserController);
 
 export default userRouter;
