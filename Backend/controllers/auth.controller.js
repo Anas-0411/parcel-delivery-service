@@ -187,17 +187,15 @@ export const loginUserController = async (req, res) => {
 // @route   POST /api/v1/auth/logout
 // @access  Private (requires authentication)
 export const logoutUserController = (req, res) => {
-  // Clear the access and refresh tokens
-  res.clearCookie("accessToken", {
+  const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-  });
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  };
+
+  res.clearCookie("accessToken", cookieOptions);
+  res.clearCookie("refreshToken", cookieOptions);
+
   return res.status(200).json({
     success: true,
     error: false,
