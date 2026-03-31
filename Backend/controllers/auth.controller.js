@@ -46,23 +46,19 @@ export const registerUserController = async (req, res) => {
     });
     await newUser.save();
 
-    // Generate access token (short-lived)
-    const accessToken = jwt.sign(
-      { userId: newUser._id },
-      process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: "15m",
-      },
-    );
+    const payload = {
+      userId: newUser._id,
+      email: newUser.email,
+      role: newUser.role,
+    };
 
-    // Generate refresh token (long-lived)
-    const refreshToken = jwt.sign(
-      { userId: newUser._id },
-      process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: "7d",
-      },
-    );
+    const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: "7d",
+    });
 
     // Store access token in httpOnly cookie for security
     res.cookie("accessToken", accessToken, {
@@ -139,23 +135,19 @@ export const loginUserController = async (req, res) => {
       });
     }
 
-    // Generate access token (short-lived)
-    const accessToken = jwt.sign(
-      { userId: user._id },
-      process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: "15m",
-      },
-    );
+    const payload = {
+      userId: user._id,
+      email: user.email,
+      role: user.role, // ✅ important
+    };
 
-    // Generate refresh token (long-lived)
-    const refreshToken = jwt.sign(
-      { userId: user._id },
-      process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: "7d",
-      },
-    );
+    const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: "7d",
+    });
 
     // Store access token in httpOnly cookie for security
     res.cookie("accessToken", accessToken, {
@@ -234,11 +226,13 @@ export const refreshTokenController = (req, res) => {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     // Generate new access token
     const accessToken = jwt.sign(
-      { userId: decoded.userId },
-      process.env.ACCESS_TOKEN_SECRET,
       {
-        expiresIn: "15m",
+        userId: decoded.userId,
+        email: decoded.email,
+        role: decoded.role,
       },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" },
     );
     // Store new access token in httpOnly cookie
     res.cookie("accessToken", accessToken, {
